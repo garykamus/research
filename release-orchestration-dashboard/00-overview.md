@@ -53,8 +53,13 @@ conflict rather than silently violating it.
   `none | http | http_flow | script | browser | webhook`. (See 05.)
 - **View** — how a step renders in the UI. `generic` by default; named **custom views**
   (e.g. `cr_creation`) for steps needing bespoke fields/layout. (See 04.)
-- **Lane attributes** — values belonging to the whole lane, seeded at creation
-  (market, package, owner, jira_id, confluence_page). Distinct from the value bag.
+- **Lane attributes** — values belonging to the whole lane (market, arcad_package,
+  branch_name, owner, jira_id, confluence_page). Mostly seeded at creation; `arcad_package`
+  may instead be **produced** by a creation step, and `arcad_package`/`branch_name` are
+  **mutable** (renameable). Distinct from the value bag. (See 02.)
+- **Lane id** — the lane's stable, immutable identity that owns all history; survives
+  package/branch renames. `(market, arcad_package)` is the human-readable *display*
+  identity. (See 02.)
 - **Value bag** — per-lane key/value store of outputs **produced** by steps as they run
   (e.g. `pr_url`, `cr_no`, `build_url`), **consumed** by later steps. (See 02.)
 - **Override** — a manual result that supersedes what automation detected, recorded with
@@ -67,6 +72,11 @@ conflict rather than silently violating it.
   concrete ordered step list` for that lane. (See 03.)
 - **Post-action** — an optional follow-on action that fires when a step completes (e.g.
   on CR approval, transition the Jira story). (See 05.)
+- **External hold** — a step kind (`external_hold`) that parks the lane in `SUSPENDED`
+  pending a separate workstream outside the dashboard, resuming via webhook/poll/manual.
+  (See 02 §4.1 / 05 §1.7.)
+- **Lane-level action** — an anytime operation on the whole lane (e.g. `rename_package`),
+  independent of the step sequence; requires a reason and is audited. (See 02 §6a / 05 §1.8.)
 
 ## 5. The whole picture in one diagram
 
@@ -110,7 +120,10 @@ conflict rather than silently violating it.
 
 In scope: orchestration, tracking, recording, triggering, evidence aggregation across
 **Jenkins, GitHub, ServiceNow, Confluence, Jira, and scan tools**, for many markets
-(15+) sharing a common backbone with small per-market step differences.
+(15+) sharing a common backbone with small per-market step differences. Also in scope:
+**creating an ARCAD package + matching branch** as a flow step, **renaming** a package +
+branch anytime (a lane-level action), and **suspending a lane** for separate external
+workstreams (build / check-in by other developers) then resuming.
 
 Out of scope (for v1): replacing any of those tools; doing the actual AS400 build work
 (that stays in Jenkins/ARCAD); approving PRs/CRs (humans still approve in GitHub/SNOW —

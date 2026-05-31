@@ -35,14 +35,18 @@ expensive to retrofit.
   the four rules.
 
 **Acceptance:**
-- Create a lane for `(market, package, owner, jira_id, confluence_page)`; it resolves to
-  the correct market-specific step list (incl. add/skip).
+- Create a lane for `(market, arcad_package, owner, jira_id, confluence_page)`; it resolves
+  to the correct market-specific step list (incl. add/skip).
 - Walk all steps manually; record links/values; produced values appear available to later
   steps; consume-validation blocks a step missing a required value with a precise message.
 - Apply an override with a reason; effective status reflects it; audit shows auto vs
   override.
 - Matrix shows multiple lanes with differing step counts correctly in condensed mode.
 - Restart the app mid-flow → no state lost (Rule 1 proven).
+- **Rename a lane's package** via the lane-level action (with reason): `arcad_package` and
+  `branch_name` update together, `lane_id`/history are preserved, and the change is audited.
+- An **`external_hold`** step parks the lane in `SUSPENDED` and a manual "continue" resumes
+  it; the suspended state survives a restart.
 
 ### Phase 2 — Automate the safe wins
 **Goal:** automate Jenkins/GitHub; aggregate evidence.
@@ -51,6 +55,11 @@ expensive to retrofit.
 - Trigger execution: `http`, `http_flow`, `webhook`; integration clients for Jenkins +
   GitHub; Jenkins per-market `param_map`.
 - AUTO triggers: release build, ARCAD lock, G3. HYBRID: scans (trigger + human confirm).
+- `create_arcad_package` step (creates ARCAD package + matching branch, produces
+  `arcad_package`/`branch_name`); `rename_package` lane action wired to its Jenkins
+  pipeline (renames package + branch together).
+- `external_hold` resume via **webhook/poll** (auto-resume when the external build/check-in
+  completes), in addition to the manual resume from Phase 1.
 - Engine **waiting-lane polling** + webhook advancement (`01` §3); on-demand refresh.
 - Evidence aggregation: `update_evidence` step composes captured scan + Confluence URLs.
 - Idempotency keys; resume-after-restart proven for in-flight automated steps.
@@ -59,6 +68,12 @@ expensive to retrofit.
 - A build step fires via the user's token, polls to completion, captures `build_url`,
   advances automatically.
 - A waiting gate (e.g. PR merged via webhook) advances the lane without manual action.
+- `create_arcad_package` creates the package + branch and produces equal
+  `arcad_package`/`branch_name` (alignment validated).
+- An `external_hold` step auto-resumes on its webhook/poll signal, capturing the produced
+  value into the bag.
+- A `rename_package` action renames package + branch via Jenkins, updates both attributes,
+  and later steps use the new name.
 - Re-firing a step does not create a duplicate external artifact.
 - Override still works on an automated step (auto FAILED → overridden DONE, audited).
 
@@ -116,6 +131,15 @@ From `02` §9 and `03` §7 — restated as a checklist:
 9. **SKIPPED steps** never fire and never block advancement.
 10. **Config-load startup check:** validate every market binding resolves coherently
     before serving.
+11. **Name alignment:** `branch_name` always equals `arcad_package` — on creation, on any
+    producing step, and on rename.
+12. **Immutable `lane_id`:** renames change attributes only; history/value bag/links stay
+    bound to `lane_id`.
+13. **`external_hold`** holds the lane `SUSPENDED` indefinitely, fires no forward trigger,
+    and advances only on resume (webhook/poll/manual); a lane resolving to end on an
+    unresolved hold is flagged.
+14. **Lane-level actions** (e.g. rename) require a reason, are audited, and apply
+    atomically (no partial rename on trigger failure).
 
 ## 4. Cross-cutting non-functionals
 - **Security:** credentials encrypted at rest, never logged; scripts sandboxed/timed;

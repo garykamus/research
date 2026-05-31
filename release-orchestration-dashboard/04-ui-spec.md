@@ -43,11 +43,12 @@ Purpose: see **all lanes at once**, and how far each has progressed.
 
 ### Status colours (consistent across both screens)
 `pending` (neutral/outlined) · `in progress` (info) · `done` (success) ·
-`waiting` — human gate (warning) · `blocked` (danger).
+`waiting` — human gate (warning) · `suspended` — external hold (distinct neutral/muted,
+not danger) · `blocked` (danger).
 
 ### Behaviour
 - Click a row → open that lane's detail.
-- Filter/group by market, package, status, owner (at minimum: free-text filter +
+- Filter/group by market, arcad_package, status, owner (at minimum: free-text filter +
   status filter).
 - The set of steps shown is driven by config; adding a step adds a segment/column
   everywhere automatically.
@@ -61,15 +62,20 @@ Purpose: work and monitor **one release** — trigger steps, record results, see
 follow value flow.
 
 ### Layout
-- Header: back link, `market / package`, owner, `jira_id` link, `confluence_page` link,
-  a summary line (`6/8 done · waiting on CR approval · links collected: N · overrides: N`),
-  and a **refresh status** action (forces live re-check — see `01` state model).
+- Header: back link, `market / arcad_package`, owner, `jira_id` link, `confluence_page`
+  link, a summary line (`6/8 done · waiting on CR approval · links collected: N ·
+  overrides: N`), a **refresh status** action (forces live re-check — see `01` state
+  model), and an **actions** menu for **lane-level actions** (e.g. *Rename package* —
+  prompts for the new name + reason; see `02` §6a). The displayed `arcad_package` updates
+  in place after a rename.
 - Body: the lane's resolved steps as a **vertical sequence** with **connectors** between
   them (showing pipeline order).
 - Each step row (collapsed) shows: status node, number + label, **mode badge**
   (AUTO/HYBRID/MANUAL), a **custom-view badge** if applicable, recorded-link pills, any
   flags (e.g. "override applied"), a live indicator (e.g. "polling") on waiting gates,
-  and an expand chevron.
+  and an expand chevron. An **`external_hold`** step shows a `SUSPENDED` state with a
+  "waiting on external process" note and, when applicable, a **Resume / continue** action
+  plus any resume-capture fields (see `05` §1.7).
 - **Value-flow notes** render inline where relevant: a producing step shows
   `cr_no → feeds steps 6, 8`; a consuming step shows `uses cr_no from step 4`. (Borrowed
   from a DAG view, without the DAG's inability to scale.)

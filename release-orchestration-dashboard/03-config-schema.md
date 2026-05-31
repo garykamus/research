@@ -31,18 +31,45 @@ lives.
 
 ```yaml
 steps:
+  create_arcad_package:                # optional FIRST step when the package is new
+    label: "Create ARCAD package + branch"
+    mode: HYBRID                       # trigger auto; confirm/capture the produced names
+    view: generic
+    tool: jenkins
+    consumes: [package_version]        # the intended name/version, seeded at creation
+    produces: [arcad_package, branch_name]   # confirmed outputs; MUST be equal (02 §3)
+    trigger:
+      type: http_flow
+      steps:
+        - call:  "POST {market.arcad_create_url}?VERSION={package_version}"
+        - poll:  "GET {market.arcad_create_url}/lastBuild/api/json"
+          until: "$.result != null"
+          timeout: 20m
+        - capture: { arcad_package: "$.packageName", branch_name: "$.branch" }
+    # engine asserts branch_name == arcad_package on success (02 §9 rule 7)
+
+  external_dev_work:                   # parks the lane for a separate team's process
+    label: "External build & check-in (other team's process)"
+    kind: external_hold                # lane → SUSPENDED, indefinitely (02 §4.1)
+    resume:                            # how the lane comes back (05 §1.7)
+      type: webhook                    # webhook | poll | manual
+      on: "build_complete"
+      match: { branch: "{branch_name}" }
+      capture: { build_url: "$.url" }  # what the external work produced
+    # never fires a forward trigger; resumes on signal or manual "continue"
+
   create_pr:
     label: "Create PR on GitHub"
     mode: HYBRID
     view: generic
     tool: github
     produces: [pr_url]
-    consumes: [package]
+    consumes: [arcad_package]
     trigger:
       type: http
       method: POST
       url_template: "{tool.github.api}/repos/{market.repo}/pulls"
-      body_template: '{"head":"{package}","base":"main","title":"Release {package}"}'
+      body_template: '{"head":"{branch_name}","base":"main","title":"Release {arcad_package}"}'
       capture: { pr_url: "$.html_url" }
     link_buttons:
       - { label: "Open PR", url_template: "{pr_url}" }
@@ -52,11 +79,11 @@ steps:
     mode: AUTO
     view: generic
     tool: jenkins
-    consumes: [package]
+    consumes: [arcad_package]
     trigger:
       type: http_flow            # trigger then poll (see 05)
       steps:
-        - call: "POST {market.build_url}?PACKAGE={package}&OWNER={owner}"
+        - call: "POST {market.build_url}?PACKAGE={arcad_package}&OWNER={owner}"
         - poll: "GET {market.build_url}/lastBuild/api/json"
           until: "$.result != null"
           timeout: 30m
@@ -93,15 +120,15 @@ steps:
     label: "Lock ARCAD package"
     mode: AUTO
     tool: jenkins
-    consumes: [package]
-    trigger: { type: http, method: POST, url_template: "{market.g3_lock_url}?PACKAGE={package}" }
+    consumes: [arcad_package]
+    trigger: { type: http, method: POST, url_template: "{market.g3_lock_url}?PACKAGE={arcad_package}" }
 
   g3_package:
     label: "Create G3 package"
     mode: AUTO
     tool: jenkins
-    consumes: [package, cr_no]
-    trigger: { type: http, method: POST, url_template: "{market.g3_url}?PACKAGE={package}&CR={cr_no}" }
+    consumes: [arcad_package, cr_no]
+    trigger: { type: http, method: POST, url_template: "{market.g3_url}?PACKAGE={arcad_package}&CR={cr_no}" }
     produces: [g3_url]
 
   submit_cr:
@@ -180,10 +207,27 @@ templates:
     extends: backbone
     add:
       - { step: regional_compliance, before: submit_cr }
+
+  create_then_release:       # variant: package is created by the flow, with an external gap
+    steps:
+      - create_arcad_package   # NEW package + matching branch (02 §3)
+      - external_dev_work      # SUSPEND: other team builds / checks in (02 §4.1)
+      - create_pr              # resume here and continue the backbone
+      - release_build
+      - sast_scan
+      - create_cr
+      - arcad_lock
+      - g3_package
+      - submit_cr
+      - update_evidence
+      - update_confluence_release
+      - update_jira_status
 ```
 
 - `extends` lets a template build on another (composition between templates).
 - Templates reference library step ids; they never inline step definitions.
+- A template may begin with `create_arcad_package` (package created by the flow) and
+  include `external_dev_work` to model a deliberate pause for a separate workstream.
 
 ## 4. Market Bindings (thin per-market deltas)
 
@@ -194,10 +238,12 @@ markets:
   HK:
     use: backbone
     urls:
-      build_url:     "https://jenkins-hk/job/core-build"
-      g3_lock_url:   "https://jenkins-hk/job/g3-lock"
-      g3_url:        "https://jenkins-hk/job/g3-create"
-      cr_update_url: "https://jenkins-hk/job/cr-update"
+      build_url:        "https://jenkins-hk/job/core-build"
+      g3_lock_url:      "https://jenkins-hk/job/g3-lock"
+      g3_url:           "https://jenkins-hk/job/g3-create"
+      cr_update_url:    "https://jenkins-hk/job/cr-update"
+      arcad_create_url: "https://jenkins-hk/job/arcad-create"   # for create_arcad_package
+      arcad_rename_url: "https://jenkins-hk/job/arcad-rename"   # for rename lane action
     repo: "org/hk-core"
     default_owner: "team-hk"
 
@@ -293,6 +339,31 @@ tools:
 (see `05` tiers): `browser` (Playwright) or `deep_link` (manual + pre-filled URL).
 `headless` (browser-driven tools) defaults to `true`; set `false` only as a debug switch.
 
+## 5a. Lane-level actions (anytime operations)
+
+Operations that act on the whole lane at any time, independent of the step sequence
+(data model: `02` §6a; execution: `05` §1.8). Defined once, available on every lane (or
+gated by market/condition). The canonical example is **rename**.
+
+```yaml
+lane_actions:
+  rename_package:
+    label: "Rename ARCAD package + branch"
+    inputs:
+      - { key: new_name, label: "New package/branch name", type: text, required: true }
+    trigger:
+      type: http                 # Jenkins pipeline renames ARCAD package AND branch
+      method: POST
+      url_template: "{market.arcad_rename_url}?FROM={arcad_package}&TO={new_name}"
+    on_success:
+      update_lane: { arcad_package: "{new_name}", branch_name: "{new_name}" }   # kept equal
+    reason: REQUIRED             # attributability, like override
+```
+
+- A rename updates the mutable attributes only; `lane_id` and all history are untouched.
+- `arcad_package` and `branch_name` are updated **together** (alignment rule, `02` §3/§9).
+- Later steps pick up the new name automatically (placeholders resolve at fire time).
+
 ## 6. Trigger types (summary; full contract in `05`)
 
 `none` (manual) · `http` (one call) · `http_flow` (calls + poll + capture) ·
@@ -313,8 +384,14 @@ The resolver **must validate** (critical at 15+ markets where deltas are easy to
 3. No `skip` of a step already absent (warn, don't fail).
 4. **Value-bag coherence:** for every step's `consumes`, some earlier step in *this
    lane's resolved order* (or a lane attribute) `produces` it. Fail resolution with a
-   precise message naming the missing producer.
+   precise message naming the missing producer. Note `arcad_package`/`branch_name` may be
+   *either* a creation-seeded attribute *or* produced by an early `create_arcad_package`
+   step — both satisfy the producer check.
 5. No duplicate step ids in the resolved sequence.
+6. **Name alignment:** any step that produces both `arcad_package` and `branch_name` must
+   guarantee they are equal; flag a flow that produces one without the other.
+7. **External-hold sanity:** an `external_hold` step must declare a `resume` (webhook /
+   poll / manual); a flow ending on an unresolved `external_hold` is flagged.
 
 Resolution validation runs at config-load time for every market too (a startup check),
 so broken bindings are caught before any lane is created.
@@ -332,7 +409,7 @@ without touching the engine. Start with file; the engine must not assume file-ne
 ## 9. Templating namespace (one namespace for all `{...}`)
 
 Resolvable in any `*_template` / `url_template` / `body_template` / browser-flow value:
-- **Lane attributes:** `{market}`, `{package}`, `{owner}`, `{jira_id}`, `{confluence_page}`
+- **Lane attributes:** `{market}`, `{arcad_package}`, `{branch_name}`, `{owner}`, `{jira_id}`, `{confluence_page}`
 - **Value bag:** `{pr_url}`, `{cr_no}`, `{build_url}`, … (whatever has been produced)
 - **Market config:** `{market.build_url}`, `{market.repo}`, `{market.g3_url}`,
   `{market.portal.audit.tab}`, `{market.portal.audit.form_selector}`, … (nested keys allowed)

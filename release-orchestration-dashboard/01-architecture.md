@@ -29,8 +29,9 @@ UI  ──REST/WebSocket──►  Release Engine  ──►  Config Store
 
 ## 2. Engine responsibilities
 
-1. **Lane lifecycle** — create a lane from `(market, package, owner, jira_id,
-   confluence_page)`; resolve its concrete step list (see `03`); persist it.
+1. **Lane lifecycle** — create a lane from `(market, arcad_package, owner, jira_id,
+   confluence_page)` (where `arcad_package` may instead be produced by a creation step);
+   resolve its concrete step list (see `03`); persist it.
 2. **Step execution** — fire a step's trigger when eligible; capture produced values;
    record links; set status.
 3. **Advancement** — when a step completes (auto-detected, manually marked, or

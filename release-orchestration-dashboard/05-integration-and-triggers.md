@@ -19,12 +19,17 @@ Every step's behaviour is a **typed trigger**. "Hit a URL" is only the simplest 
 | `browser` | Playwright automation for no-API tools | flow steps / selectors |
 | `webhook` | No outbound call — wait for inbound event | event match criteria |
 
+Two related constructs reuse these trigger types but are **not** forward-step triggers:
+an **`external_hold`** step (kind, not a trigger) parks the lane and resumes via
+webhook/poll/manual (§1.7); **lane-level actions** (e.g. rename) run anytime and use any
+trigger type (§1.8).
+
 ### 1.1 `http`
 ```yaml
 trigger:
   type: http
   method: POST
-  url_template: "{market.build_url}?PACKAGE={package}&CR={cr_no}"
+  url_template: "{market.build_url}?PACKAGE={arcad_package}&CR={cr_no}"
   body_template: '{"key":"value"}'        # optional
   capture: { build_url: "$.url" }          # JSONPath → value bag keys
 ```
@@ -159,6 +164,62 @@ status updates, values are captured. The browser-ness is hidden.
 - *Login is the weak point:* clean username/password (`form_login`) headless logins feel
   API-like; **MFA/SSO logins stall headless** — for those, prefer Tier 3 (manual + deep
   link). Pick the tier per tool accordingly.
+
+### 1.7 `external_hold` — suspend the lane for external work, then resume
+
+A step with `kind: external_hold` (data model: `02` §4.1) parks the lane in `SUSPENDED`
+while **other developers/processes do work outside the dashboard** (e.g. build + GitHub
+check-in by a separate team), then resumes. It fires **no forward trigger** — it only
+waits and resumes. Three resume mechanisms:
+
+```yaml
+# (a) webhook — resume when an external event arrives
+resume:
+  type: webhook
+  on: "build_complete"
+  match: { branch: "{branch_name}" }      # correlate the event to this lane
+  capture: { build_url: "$.url" }         # record what external work produced → value bag
+
+# (b) poll — resume when a polled condition becomes true
+resume:
+  type: poll
+  check: "GET {market.build_url}/lastBuild/api/json"
+  until: "$.result == 'SUCCESS'"
+  interval: 5m
+  capture: { build_url: "$.url" }
+
+# (c) manual — a human clicks "external work done, continue"
+resume:
+  type: manual
+  capture_fields:                          # values the human records on resume
+    - { key: build_url, label: "Build URL", type: url }
+```
+
+- While suspended the lane shows `SUSPENDED` (not `BLOCKED`) — a normal, expected state of
+  indefinite duration; persisted durably (Rule 1), survives restarts.
+- On resume, captured values enter the value bag and downstream steps consume them.
+- Audit: `LANE_SUSPENDED` on entry, `LANE_RESUMED` on exit (with actor = the resuming user
+  or `SYSTEM` for webhook/poll).
+- `external_hold` is distinct from a `HYBRID` approval gate: HYBRID waits on a human to
+  confirm a *dashboard-driven* action; `external_hold` waits on a *separate workstream*.
+
+### 1.8 Lane-level actions (anytime operations, e.g. rename)
+
+Lane-level actions (config: `03` §5a; data model: `02` §6a) run **at any time**,
+independent of the step sequence — like `override` but on the whole lane. They use the
+**same trigger types** and templating as steps, require a `reason`, and write
+`LANE_ACTION_INVOKED` + `ATTRIBUTE_CHANGED` audit entries.
+
+**Rename (`rename_package`) execution:**
+1. Fire the trigger (Jenkins pipeline) to rename the ARCAD package **and** the market-repo
+   branch together.
+2. On success, update the lane attributes `arcad_package` and `branch_name` to the new
+   name (kept equal — alignment rule).
+3. Audit who/when/why; `lane_id` and all history/value bag/links are untouched.
+4. Any not-yet-fired step automatically uses the new name (placeholders resolve at fire
+   time, never frozen at creation).
+- If the rename trigger fails, the attributes are **not** updated (no partial rename); the
+  action is retryable and surfaces the failure.
 
 ## 2. Integration tiers (when an API is missing)
 

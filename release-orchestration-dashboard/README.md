@@ -31,6 +31,9 @@ local→shared rules** are mandated regardless of language.
   market. No-API tools use `browser` (declarative or scripted, headless) with
   `form_login`, but **Tier 3 (manual + deep link) is preferred** as it stores no password.
   (`05` §1.4/§1.6/§3)
+- **Stable identity, mutable names** — `lane_id` is the immutable identity; `arcad_package`
+  and `branch_name` are mutable, renameable anytime (and kept equal), and the package may
+  be created by the flow. Lanes can suspend for external workstreams and resume. (`02`)
 
 ## Market model (drives the config design)
 Common backbone + a few steps added/skipped per market, across **15+ markets**. Handled
