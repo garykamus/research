@@ -1,0 +1,12 @@
+market: HK
+use: backbone
+servicenow_tier: rest
+urls:
+  build_url: "https://jenkins-hk.placeholder/job/core-build"
+  g3_lock_url: "https://jenkins-hk.placeholder/job/g3-lock"
+  g3_url: "https://jenkins-hk.placeholder/job/g3-create"
+  cr_update_url: "https://jenkins-hk.placeholder/job/cr-update"
+  arcad_create_url: "https://jenkins-hk.placeholder/job/arcad-create"
+  arcad_rename_url: "https://jenkins-hk.placeholder/job/arcad-rename"
+repo: "org/hk-core"
+default_owner: "team-hk"

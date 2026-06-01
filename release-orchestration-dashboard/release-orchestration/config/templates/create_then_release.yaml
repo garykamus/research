@@ -1,0 +1,15 @@
+templates:
+  create_then_release:
+    steps:
+      - create_arcad_package
+      - external_dev_work
+      - create_pr
+      - release_build
+      - sast_scan
+      - create_cr
+      - arcad_lock
+      - g3_package
+      - submit_cr
+      - update_evidence
+      - update_confluence_release
+      - update_jira_status

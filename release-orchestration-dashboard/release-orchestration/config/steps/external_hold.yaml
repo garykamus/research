@@ -1,0 +1,14 @@
+steps:
+  external_dev_work:
+    label: "External build & check-in (other team's process)"
+    kind: external_hold
+    mode: MANUAL
+    view: generic
+    consumes: []
+    produces: []
+    trigger:
+      type: none
+    resume:
+      type: manual
+      capture_fields:
+        - { key: build_url, label: "Build URL (produced by external team)", type: url }

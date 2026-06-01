@@ -1,0 +1,27 @@
+steps:
+  regional_compliance:
+    label: "Regional compliance sign-off"
+    mode: MANUAL
+    view: generic
+    kind: standard
+    consumes: []
+    produces: [signoff_ref]
+    trigger:
+      type: none
+    view_config:
+      fields:
+        - { key: signoff_ref, label: "Sign-off reference", type: text, required: true }
+
+  data_residency_check:
+    label: "Data residency check"
+    mode: MANUAL
+    view: generic
+    kind: standard
+    consumes: []
+    produces: [residency_ref]
+    trigger:
+      type: none
+    view_config:
+      fields:
+        - { key: residency_ref,  label: "Residency check reference", type: text, required: true }
+        - { key: residency_zone, label: "Residency zone",            type: text, required: false }

@@ -1,0 +1,15 @@
+market: TH
+use: backbone
+servicenow_tier: deep_link
+add:
+  - { step: regional_compliance, before: submit_cr }
+skip:
+  - arcad_lock
+urls:
+  build_url: "https://jenkins-th.placeholder/release"
+  g3_url: "https://jenkins-th.placeholder/g3"
+  g3_lock_url: "https://jenkins-th.placeholder/g3-lock"
+  cr_update_url: "https://jenkins-th.placeholder/cr-update"
+  arcad_rename_url: "https://jenkins-th.placeholder/arcad-rename"
+repo: "org/th-core"
+default_owner: "team-th"

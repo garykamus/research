@@ -1,0 +1,15 @@
+lane_actions:
+  rename_package:
+    label: "Rename ARCAD package + branch"
+    tool: jenkins
+    inputs:
+      - { key: new_name, label: "New package/branch name", type: text, required: true }
+    trigger:
+      type: http
+      method: POST
+      url_template: "{market.arcad_rename_url}?FROM={arcad_package}&TO={new_name}"
+    on_success:
+      update_lane:
+        arcad_package: "{new_name}"
+        branch_name: "{new_name}"
+    reason: REQUIRED

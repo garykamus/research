@@ -1,0 +1,22 @@
+tools:
+  jenkins:
+    base: "https://jenkins.placeholder"
+    auth: token
+    param_map: {}
+
+  github:
+    api: "https://api.github.com"
+    auth: token
+
+  servicenow:
+    api: "https://snow.placeholder/api/now"
+    auth: token
+    fallback: deep_link
+
+  confluence:
+    api: "https://confluence.placeholder/rest/api"
+    auth: token
+
+  jira:
+    api: "https://jira.placeholder/rest/api/2"
+    auth: token

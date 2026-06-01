@@ -1,0 +1,14 @@
+market: SG
+use: backbone
+servicenow_tier: deep_link
+urls:
+  build_url: "https://jenkins-apac.placeholder/sg/release"
+  g3_url: "https://jenkins-apac.placeholder/sg/g3"
+  g3_lock_url: "https://jenkins-apac.placeholder/sg/g3-lock"
+  cr_update_url: "https://jenkins-apac.placeholder/sg/cr-update"
+  arcad_rename_url: "https://jenkins-apac.placeholder/sg/arcad-rename"
+repo: "org/sg-core"
+default_owner: "team-sg"
+override:
+  release_build:
+    extra_params: { REGION: "apac" }

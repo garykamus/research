@@ -1,0 +1,254 @@
+/* ═══════════════════════════════════════════════════════════════
+   Release Orchestration Dashboard — Modern UI stylesheet
+   Palette: slate surface · indigo accent · semantic status colors
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Global reset ── */
+* {
+    box-sizing: border-box;
+}
+
+QMainWindow, QWidget {
+    font-family: "Segoe UI", "Inter", Arial, sans-serif;
+    font-size: 13px;
+    color: #1e2433;
+    background-color: #f0f2f7;
+}
+
+QDialog {
+    background-color: #f0f2f7;
+}
+
+/* ── Scroll areas ── */
+QScrollArea {
+    border: none;
+    background: transparent;
+}
+QScrollBar:vertical {
+    width: 6px;
+    background: transparent;
+    margin: 0;
+}
+QScrollBar::handle:vertical {
+    background: #c5cad6;
+    border-radius: 3px;
+    min-height: 24px;
+}
+QScrollBar::handle:vertical:hover { background: #9ba3b8; }
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical { height: 0; }
+QScrollBar:horizontal { height: 6px; background: transparent; }
+QScrollBar::handle:horizontal { background: #c5cad6; border-radius: 3px; }
+
+/* ── Buttons ── */
+QPushButton {
+    background-color: #4f6af5;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-weight: 600;
+    font-size: 12px;
+    min-width: 64px;
+}
+QPushButton:hover   { background-color: #3d57e0; }
+QPushButton:pressed { background-color: #2d43c8; }
+QPushButton:disabled { background-color: #c5cad6; color: #8e96a8; }
+
+/* Primary variant — explicit high-specificity rule so Windows platform style
+   cannot bleed the parent frame's background through the button */
+QPushButton[variant="primary"] {
+    background-color: #4f6af5;
+    color: #ffffff;
+    border: none;
+}
+QPushButton[variant="primary"]:hover   { background-color: #3d57e0; }
+QPushButton[variant="primary"]:pressed { background-color: #2d43c8; }
+QPushButton[variant="primary"]:disabled { background-color: #c5cad6; color: #8e96a8; }
+
+/* Ghost / secondary variant — applied via setProperty("variant","ghost") */
+QPushButton[variant="ghost"] {
+    background-color: transparent;
+    color: #4f6af5;
+    border: 1px solid #cbd2e8;
+}
+QPushButton[variant="ghost"]:hover {
+    background-color: #eef1fd;
+    border-color: #4f6af5;
+}
+
+/* Danger variant */
+QPushButton[variant="danger"] {
+    background-color: #e53935;
+    color: #ffffff;
+}
+QPushButton[variant="danger"]:hover { background-color: #c62828; }
+
+/* Icon-only flat buttons (Back, chevron) */
+QPushButton[variant="flat"] {
+    background-color: transparent;
+    color: #4f6af5;
+    border: none;
+    padding: 4px 8px;
+    min-width: 0;
+    font-weight: 600;
+}
+QPushButton[variant="flat"]:hover { background-color: #eef1fd; border-radius: 4px; }
+
+
+/* ── Table (matrix) ── */
+QTableWidget {
+    background-color: #ffffff;
+    border: 1px solid #dde1ee;
+    border-radius: 8px;
+    gridline-color: #f0f2f7;
+    alternate-background-color: #f8f9fd;
+    outline: none;
+}
+QTableWidget::item {
+    padding: 6px 10px;
+    border: none;
+}
+QTableWidget::item:selected {
+    background-color: #eef1fd;
+    color: #1e2433;
+}
+QHeaderView::section {
+    background-color: #f8f9fd;
+    border: none;
+    border-bottom: 2px solid #dde1ee;
+    padding: 6px 10px;
+    font-weight: 700;
+    font-size: 11px;
+    color: #6b7490;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+QHeaderView { background: transparent; }
+
+/* ── Step rows (lane detail) ── */
+QFrame#stepRow {
+    background-color: #ffffff;
+    border: 1px solid #e4e8f2;
+    border-radius: 8px;
+    margin: 2px 0;
+}
+QFrame#stepRow:hover {
+    border-color: #b8c4e8;
+}
+QFrame#stepRowExpanded {
+    background-color: #fafbff;
+    border: 1.5px solid #4f6af5;
+    border-radius: 8px;
+    margin: 2px 0;
+}
+
+/* ── Lane detail header ── */
+QWidget#detailHeader {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e4e8f2;
+}
+
+/* ── Form inputs ── */
+QLineEdit, QTextEdit, QDateTimeEdit, QComboBox {
+    background-color: #ffffff;
+    border: 1.5px solid #dde1ee;
+    border-radius: 6px;
+    padding: 5px 8px;
+    color: #1e2433;
+    selection-background-color: #c5d0fb;
+}
+QLineEdit:focus, QTextEdit:focus, QDateTimeEdit:focus, QComboBox:focus {
+    border-color: #4f6af5;
+    outline: none;
+}
+QLineEdit:disabled { background-color: #f0f2f7; color: #9ba3b8; }
+
+QComboBox::drop-down {
+    border: none;
+    width: 20px;
+}
+QComboBox QAbstractItemView {
+    background: #ffffff;
+    border: 1px solid #dde1ee;
+    border-radius: 6px;
+    selection-background-color: #eef1fd;
+}
+
+/* ── Group boxes ── */
+QGroupBox {
+    border: 1.5px solid #e4e8f2;
+    border-radius: 8px;
+    margin-top: 10px;
+    padding-top: 8px;
+    font-weight: 600;
+    color: #4a5070;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 6px;
+    color: #6b7490;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+/* ── Check boxes ── */
+QCheckBox {
+    spacing: 6px;
+    color: #1e2433;
+}
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid #b0bace;
+    border-radius: 4px;
+    background: #ffffff;
+}
+QCheckBox::indicator:checked {
+    background-color: #4f6af5;
+    border-color: #4f6af5;
+}
+QCheckBox::indicator:hover { border-color: #4f6af5; }
+
+/* ── Message boxes / dialogs ── */
+QMessageBox {
+    background-color: #ffffff;
+}
+QDialogButtonBox QPushButton {
+    min-width: 80px;
+}
+
+/* ── Menu ── */
+QMenu {
+    background-color: #ffffff;
+    border: 1px solid #e4e8f2;
+    border-radius: 8px;
+    padding: 4px;
+}
+QMenu::item {
+    padding: 7px 20px 7px 12px;
+    border-radius: 4px;
+    color: #1e2433;
+}
+QMenu::item:selected { background-color: #eef1fd; color: #4f6af5; }
+QMenu::separator {
+    height: 1px;
+    background: #e4e8f2;
+    margin: 4px 8px;
+}
+
+/* ── Labels ── */
+QLabel { background: transparent; }
+
+/* ── Tool tips ── */
+QToolTip {
+    background-color: #2c3250;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 11px;
+}

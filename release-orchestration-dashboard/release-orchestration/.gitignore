@@ -1,0 +1,33 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+
+# PyInstaller build output
+dist/
+build/
+*.spec.bak
+*.manifest
+
+# Runtime data (SQLite, WAL, logs)
+.data/
+*.db
+*.db-wal
+*.db-shm
+logs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Test / coverage artefacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Packaging metadata
+*.egg-info/
+
+# Editor / tool state
+.claude/

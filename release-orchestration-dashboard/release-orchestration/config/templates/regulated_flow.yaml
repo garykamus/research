@@ -1,0 +1,5 @@
+templates:
+  regulated_flow:
+    extends: backbone
+    add:
+      - { step: regional_compliance, before: submit_cr }

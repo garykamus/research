@@ -1,0 +1,19 @@
+[project]
+name = "release-orchestration"
+version = "0.1.0"
+description = "AS400 multi-market release orchestration dashboard"
+requires-python = ">=3.11"
+dependencies = [
+    "PySide6>=6.7.0",
+    "PyYAML>=6.0",
+]
+
+[project.scripts]
+release-orch = "ui.main:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.pyright]
+pythonVersion = "3.11"

@@ -1,0 +1,218 @@
+steps:
+  create_arcad_package:
+    label: "Create ARCAD package + branch"
+    mode: HYBRID
+    view: generic
+    kind: standard
+    tool: jenkins
+    consumes: []
+    produces: []
+    trigger:
+      type: http_flow
+      steps:
+        - call: "POST {market.arcad_create_url}?VERSION={arcad_package}&OWNER={owner}"
+        - poll: "GET {market.arcad_create_url}/lastBuild/api/json"
+          until: "$.result != null"
+          timeout: 20m
+          interval: 30s
+        - capture:
+            creation_ref: "$.url"
+    link_buttons:
+      - { label: "Creation job", url_template: "{creation_ref}" }
+    view_config:
+      fields:
+        - { key: creation_ref, label: "Creation confirmation / job URL", type: url, required: false }
+
+  create_pr:
+    label: "Create PR on GitHub"
+    mode: HYBRID
+    view: generic
+    kind: standard
+    tool: github
+    consumes: [arcad_package]
+    produces: [pr_url]
+    trigger:
+      type: http
+      method: POST
+      url_template: "{tool.github.api}/repos/{market.repo}/pulls"
+      body_template: '{"head":"{branch_name}","base":"main","title":"Release {arcad_package}"}'
+      capture:
+        pr_url: "$.html_url"
+    link_buttons:
+      - { label: "Open PR", url_template: "{pr_url}" }
+    view_config:
+      fields:
+        - { key: pr_url, label: "PR URL", type: url, required: false }
+
+  release_build:
+    label: "Trigger release build"
+    mode: AUTO
+    view: generic
+    kind: standard
+    tool: jenkins
+    consumes: [arcad_package]
+    produces: [build_url, build_result]
+    trigger:
+      type: http_flow
+      steps:
+        - call: "POST {market.build_url}?PACKAGE={arcad_package}&OWNER={owner}"
+        - poll: "GET {market.build_url}/lastBuild/api/json"
+          until: "$.result != null"
+          timeout: 30m
+          interval: 30s
+        - capture:
+            build_url: "$.url"
+            build_result: "$.result"
+    link_buttons:
+      - { label: "Open build", url_template: "{build_url}" }
+    view_config:
+      fields:
+        - { key: build_url,    label: "Build URL",    type: url,  required: false }
+        - { key: build_result, label: "Build result", type: text, required: false }
+
+  sast_scan:
+    label: "SAST / cyber scan"
+    mode: HYBRID
+    view: generic
+    kind: standard
+    consumes: [build_url]
+    produces: [sast_url, cyber_url]
+    trigger:
+      type: webhook
+    link_buttons:
+      - { label: "SAST report",  url_template: "{sast_url}" }
+      - { label: "Cyber report", url_template: "{cyber_url}" }
+    view_config:
+      fields:
+        - { key: sast_url,  label: "SAST URL",  type: url, required: true }
+        - { key: cyber_url, label: "Cyber URL",  type: url, required: false }
+
+  create_cr:
+    label: "Create CR on ServiceNow"
+    mode: HYBRID
+    view: cr_creation
+    kind: standard
+    tool: servicenow
+    consumes: []
+    produces: [cr_no, cr_url]
+    trigger:
+      type: http
+      method: POST
+      url_template: "{tool.servicenow.api}/table/change_request"
+      body_template: '{"short_description":"{arcad_package} release to {market}","assignment_group":"{assignment_group}","start_date":"{planned_start}","end_date":"{planned_end}"}'
+      capture:
+        cr_no: "$.result.number"
+        cr_url: "$.result.sys_url"
+    link_buttons:
+      - { label: "Open CR", url_template: "{cr_url}" }
+    view_config:
+      fields:
+        - { key: cr_no,         label: "CR number",          type: text,     required: true }
+        - { key: cr_url,        label: "CR URL",             type: url,      required: false }
+        - { key: short_desc,    label: "Short description",  type: text,     required: false }
+        - { key: assignment_group, label: "Assignment group", type: text,    required: false }
+        - { key: planned_start, label: "Planned start",      type: datetime, required: false }
+        - { key: planned_end,   label: "Planned end",        type: datetime, required: false }
+
+  arcad_lock:
+    label: "Lock ARCAD package"
+    mode: AUTO
+    view: generic
+    kind: standard
+    tool: jenkins
+    consumes: [arcad_package]
+    produces: []
+    trigger:
+      type: http
+      method: POST
+      url_template: "{market.g3_lock_url}?PACKAGE={arcad_package}"
+
+  g3_package:
+    label: "Create G3 package"
+    mode: AUTO
+    view: generic
+    kind: standard
+    tool: jenkins
+    consumes: [arcad_package, cr_no]
+    produces: [g3_url]
+    trigger:
+      type: http_flow
+      steps:
+        - call: "POST {market.g3_url}?PACKAGE={arcad_package}&CR={cr_no}"
+        - poll: "GET {market.g3_url}/lastBuild/api/json"
+          until: "$.result != null"
+          timeout: 20m
+          interval: 30s
+        - capture:
+            g3_url: "$.url"
+    link_buttons:
+      - { label: "G3 job", url_template: "{g3_url}" }
+    view_config:
+      fields:
+        - { key: g3_url, label: "G3 URL", type: url, required: false }
+
+  submit_cr:
+    label: "Submit CR for approval"
+    mode: HYBRID
+    view: generic
+    kind: standard
+    tool: servicenow
+    consumes: [cr_no]
+    produces: []
+    trigger:
+      type: http
+      method: PATCH
+      url_template: "{tool.servicenow.api}/table/change_request?sysparm_query=number%3D{cr_no}"
+      body_template: '{"state":"-4"}'
+    post_actions:
+      - when: DONE
+        do:
+          type: http
+          method: POST
+          url_template: "{tool.jira.api}/issue/{jira_id}/transitions"
+          body_template: '{"transition":{"id":"31"},"update":{"comment":[{"add":{"body":"CR {cr_no} submitted for approval"}}]}}'
+
+  update_evidence:
+    label: "Update CR info / audit page"
+    mode: AUTO
+    view: evidence_update
+    kind: standard
+    tool: servicenow
+    consumes: [cr_no, sast_url]
+    produces: []
+    trigger:
+      type: http
+      method: PATCH
+      url_template: "{tool.servicenow.api}/table/change_request?sysparm_query=number%3D{cr_no}"
+      body_template: '{"work_notes":"SAST: {sast_url}\nCyber: {cyber_url}\nBuild: {build_url}\nTest: {test_evidence_url}"}'
+    view_config:
+      fields:
+        - { key: test_evidence_url, label: "Test evidence URL", type: url, required: false }
+        - { key: regression_url,    label: "Regression URL",    type: url, required: false }
+
+  update_confluence_release:
+    label: "Update Confluence release page"
+    mode: HYBRID
+    view: confluence_release
+    kind: standard
+    tool: confluence
+    consumes: [cr_no, build_url]
+    produces: []
+    trigger:
+      type: none
+    link_buttons:
+      - { label: "Confluence page", url_template: "{confluence_page}" }
+
+  update_jira_status:
+    label: "Update Jira story status"
+    mode: AUTO
+    view: generic
+    kind: standard
+    tool: jira
+    consumes: [cr_no]
+    produces: []
+    trigger:
+      type: http
+      method: POST
+      url_template: "{tool.jira.api}/issue/{jira_id}/transitions"
+      body_template: '{"transition":{"id":"31"},"update":{"comment":[{"add":{"body":"CR {cr_no} approved. Release complete."}}]}}'

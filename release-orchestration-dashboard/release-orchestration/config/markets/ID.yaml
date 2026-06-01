@@ -1,0 +1,17 @@
+market: ID
+use: regulated_flow
+servicenow_tier: deep_link
+add:
+  - { step: data_residency_check, after: create_cr }
+override:
+  create_cr:
+    extra_fields:
+      - { key: residency_zone, label: "Residency zone", type: text, required: true }
+urls:
+  build_url: "https://jenkins-id.placeholder/release"
+  g3_url: "https://jenkins-id.placeholder/g3"
+  g3_lock_url: "https://jenkins-id.placeholder/g3-lock"
+  cr_update_url: "https://jenkins-id.placeholder/cr-update"
+  arcad_rename_url: "https://jenkins-id.placeholder/arcad-rename"
+repo: "org/id-core"
+default_owner: "team-id"
